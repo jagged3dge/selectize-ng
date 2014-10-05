@@ -115,6 +115,8 @@ angular.module('selectize-ng', [])
         }
 
         function setSelectizeOptions(newOptions) {
+
+          if (!newOptions) { return; }
           var values;
 
           if (attrs.defaults) {
