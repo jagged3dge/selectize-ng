@@ -8,11 +8,12 @@ angular.module('selectize-ng', [])
       require: 'ngModel',
       scope: {
         selectize: '&',
-        options: '&'
+        options: '&',
+        defaults: '&'
       },
       link: function(scope, element, attrs, ngModel) {
 
-        var changing, options, selectize, invalidValues = [];
+        var changing, options, defaultValues, selectize, invalidValues = [];
 
         // Default options
         options = angular.extend({
@@ -27,6 +28,19 @@ angular.module('selectize-ng', [])
         selectize.on('change', function() {
           setModelValue(selectize.getValue());
         });
+
+        // Default Values
+        defaultValues = function (fn) {
+          var values = fn();
+
+          if (values instanceof Array) {
+            values.forEach (function (value) {
+              selectize.addItem(value);
+            });
+          }
+        };
+
+        scope.$watch
 
         function setModelValue(value) {
           if (changing) {
@@ -99,12 +113,20 @@ angular.module('selectize-ng', [])
             storeInvalidValues(values, parseValues(selectize.getValue()));
           });
         }
-        
+
         function setSelectizeOptions(newOptions) {
-          var values = parseValues(ngModel.$viewValue);
+          var values;
+
+          if (attrs.defaults) {
+            changing = false;
+            values = parseValues(scope.defaults());
+          } else {
+            values = parseValues(ngModel.$viewValue);
+          }
+
           selectize.addOption(newOptions);
           selectize.refreshOptions(false);
-          if (options.mode === 'multi' && newOptions) {
+          if (options.mode === 'multi' && newOptions && values) {
             restoreInvalidValues(newOptions, values);
           }
           setSelectizeValue(values);
@@ -115,6 +137,10 @@ angular.module('selectize-ng', [])
         if (attrs.options) {
           scope.$parent.$watchCollection(attrs.options, setSelectizeOptions);
         }
+
+        // if (attrs.defaults) {
+        //   scope.$parent.$watchCollection(attrs.defaults, setDefaultValues);
+        // }
 
         scope.$on('$destroy', function() {
           selectize.destroy();
