@@ -13,7 +13,9 @@ angular.module('selectize-ng', [])
       },
       link: function(scope, element, attrs, ngModel) {
 
-        var changing, options, defaultValues, selectize, invalidValues = [];
+        var changing, runOnce, options, defaultValues, selectize, invalidValues = [];
+
+        runOnce = false;
 
         // Default options
         options = angular.extend({
@@ -39,8 +41,6 @@ angular.module('selectize-ng', [])
             });
           }
         };
-
-        scope.$watch
 
         function setModelValue(value) {
           if (changing) {
@@ -119,10 +119,11 @@ angular.module('selectize-ng', [])
           if (!newOptions) { return; }
           var values;
 
-          if (attrs.defaults) {
+          if (attrs.defaults && !runOnce) {
             changing = false;
             values = parseValues(scope.defaults());
-          } else {
+            runOnce = !runOnce;
+          } else if (!attrs.defaults) {
             values = parseValues(ngModel.$viewValue);
           }
 
