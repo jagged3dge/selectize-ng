@@ -1,112 +1,122 @@
 
 angular.module('selectize-ng', [])
-  .directive('selectize', function() {
-    'use strict';
+.directive('selectize', function() {
+  'use strict';
 
-    return {
-      restrict: 'A',
-      require: 'ngModel',
-      scope: {
-        selectize: '&',
-        options: '&',
-        defaults: '&'
-      },
-      link: function(scope, element, attrs, ngModel) {
+  return {
+    restrict: 'A',
+    require: 'ngModel',
+    scope: {
+      selectize: '&',
+      options: '&',
+      defaults: '&',
+      selecteditems: '='
+    },
+    link: function(scope, element, attrs, ngModel) {
 
-        var changing, runOnce, options, defaultValues, selectize, invalidValues = [];
+      var changing, runOnce, options, defaultValues, selectize, invalidValues = [];
 
-        runOnce = false;
+      runOnce = false;
 
-        // Default options
-        options = angular.extend({
-          delimiter: ',',
-          persist: true,
-          mode: (element[0].tagName === 'SELECT') ? 'single' : 'multi'
-        }, scope.selectize() || {});
+      // Default options
+      options = angular.extend({
+        delimiter: ',',
+        persist: true,
+        mode: (element[0].tagName === 'SELECT') ? 'single' : 'multi'
+      }, scope.selectize() || {});
 
-        // Activate the widget
-        selectize = element.selectize(options)[0].selectize;
+      // Activate the widget
+      selectize = element.selectize(options)[0].selectize;
 
-        selectize.on('change', function() {
-          setModelValue(selectize.getValue());
+      selectize.on('change', function() {
+        setModelValue(selectize.getValue());
+      });
+
+      function setModelValue(value) {
+        if (changing) {
+          if (attrs.selecteditems) {
+            var selected = [];
+            var values = $.isArray(value) ? value : [value];
+            angular.forEach(values, function (i) {
+              selected.push(selectize.options[i]);
+            })
+            scope.$apply (function() {
+              scope.selecteditems = selected;
+            })
+          }
+          return;
+        }
+
+        scope.$parent.$apply(function() {
+          ngModel.$setViewValue(value);
         });
 
-        // Default Values
-        defaultValues = function (fn) {
-          var values = fn();
 
-          if (values instanceof Array) {
-            values.forEach (function (value) {
-              selectize.addItem(value);
-            });
-          }
-        };
 
-        function setModelValue(value) {
-          if (changing) {
-            return;
+        if (options.mode === 'single') {
+          selectize.blur();
+        }
+      }
+
+      // Normalize the model value to an array
+      function parseValues(value) {
+        if (angular.isArray(value)) {
+          return value;
+        }
+        if ( ! value) {
+          return [];
+        }
+        return String(value).split(options.delimiter);
+      }
+
+      // Non-strict indexOf
+      function indexOfLike(arr, val) {
+        for (var i=0; i < arr.length; i++) {
+          if (arr[i] == val) {
+            return i;
           }
-          scope.$parent.$apply(function() {
-            ngModel.$setViewValue(value);
+        }
+        return -1;
+      }
+
+      // Boolean wrapper to indexOfLike
+      function contains(arr, val) {
+        return indexOfLike(arr, val) !== -1;
+      }
+
+      // Store invalid items for late-loading options
+      function storeInvalidValues(values, resultValues) {
+        values.map(function(val) {
+          if ( ! (contains(resultValues, val) || contains(invalidValues, val))) {
+            invalidValues.push(val);
+          }
+        });
+      }
+
+      function restoreInvalidValues(newOptions, values) {
+        var i, index;
+        for (i=0; i < newOptions.length; i++) {
+          index = indexOfLike(invalidValues, newOptions[i][selectize.settings.valueField]);
+          if (index !== -1) {
+            values.push(newOptions[i][selectize.settings.valueField]);
+            invalidValues.splice(index, 1);
+          }
+        }
+      }
+
+      function setSelectizeValue(value) {
+        var values = parseValues(value);
+        if (changing || values === parseValues(selectize.getValue())) {
+          return;
+        }
+        changing = true;
+        if (options.mode === 'single' && value) {
+          setTimeout(function() {
+            selectize.setValue(value);
+            changing = false;
           });
-
-          if (options.mode === 'single') {
-            selectize.blur();
-          }
         }
-
-        // Normalize the model value to an array
-        function parseValues(value) {
-          if (angular.isArray(value)) {
-            return value;
-          }
-          if ( ! value) {
-            return [];
-          }
-          return String(value).split(options.delimiter);
-        }
-
-        // Non-strict indexOf
-        function indexOfLike(arr, val) {
-          for (var i=0; i < arr.length; i++) {
-            if (arr[i] == val) {
-              return i;
-            }
-          }
-          return -1;
-        }
-
-        // Boolean wrapper to indexOfLike
-        function contains(arr, val) {
-          return indexOfLike(arr, val) !== -1;
-        }
-
-        // Store invalid items for late-loading options
-        function storeInvalidValues(values, resultValues) {
-          values.map(function(val) {
-            if ( ! (contains(resultValues, val) || contains(invalidValues, val))) {
-              invalidValues.push(val);
-            }
-          });
-        }
-
-        function restoreInvalidValues(newOptions, values) {
-          var i, index;
-          for (i=0; i < newOptions.length; i++) {
-            index = indexOfLike(invalidValues, newOptions[i][selectize.settings.valueField]);
-            if (index !== -1) {
-              values.push(newOptions[i][selectize.settings.valueField]);
-              invalidValues.splice(index, 1);
-            }
-          }
-        }
-
-        function setSelectizeValue(value) {
-          var values = parseValues(value);
-          if (changing || values === parseValues(selectize.getValue())) {
-            return;
-          }
-          changing = true;
+        else if (options.mode === 'multi' && value) {
           setTimeout(function() {
             selectize.setValue(values);
             changing = false;
@@ -114,40 +124,39 @@ angular.module('selectize-ng', [])
           });
         }
 
-        function setSelectizeOptions(newOptions) {
-
-          if (!newOptions) { return; }
-          var values;
-
-          if (attrs.defaults && !runOnce) {
-            changing = false;
-            values = parseValues(scope.defaults());
-            runOnce = !runOnce;
-          } else if (!attrs.defaults) {
-            values = parseValues(ngModel.$viewValue);
-          }
-
-          selectize.addOption(newOptions);
-          selectize.refreshOptions(false);
-          if (options.mode === 'multi' && newOptions && values) {
-            restoreInvalidValues(newOptions, values);
-          }
-          setSelectizeValue(values);
-        }
-
-        scope.$parent.$watch(attrs.ngModel, setSelectizeValue);
-
-        if (attrs.options) {
-          scope.$parent.$watchCollection(attrs.options, setSelectizeOptions);
-        }
-
-        // if (attrs.defaults) {
-        //   scope.$parent.$watchCollection(attrs.defaults, setDefaultValues);
-        // }
-
-        scope.$on('$destroy', function() {
-          selectize.destroy();
-        });
       }
-    };
-  });
+
+      function setSelectizeOptions(newOptions) {
+
+        if (!newOptions) { return; }
+
+        var values;
+
+        if (attrs.defaults && !runOnce) {
+          changing = false;
+          values = parseValues(scope.defaults());
+          runOnce = !runOnce;
+        } else if (!attrs.defaults) {
+          values = parseValues(ngModel.$viewValue);
+        }
+
+        selectize.addOption(newOptions);
+        selectize.refreshOptions(false);
+        if (options.mode === 'multi' && newOptions && values) {
+          restoreInvalidValues(newOptions, values);
+        }
+        setSelectizeValue(values);
+      }
+
+      scope.$parent.$watch(attrs.ngModel, setSelectizeValue);
+
+      if (attrs.options) {
+        scope.$parent.$watchCollection(attrs.options, setSelectizeOptions);
+      }
+
+      scope.$on('$destroy', function() {
+        selectize.destroy();
+      });
+    }
+  };
+});
