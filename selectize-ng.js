@@ -36,7 +36,7 @@ angular.module('selectize-ng', [])
         if (changing) {
           if (attrs.selecteditems) {
             var selected = [];
-            var values = $.isArray(value) ? value : [value];
+            var values = parseValues(value);
             angular.forEach(values, function (i) {
               selected.push(selectize.options[i]);
             })
