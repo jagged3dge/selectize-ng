@@ -106,8 +106,10 @@ angular.module('selectize-ng', [])
 
       function setSelectizeValue(value) {
         if (!value) {
-          selectize.clear();
-          return;
+          setTimeout(function() {
+            selectize.clear();
+            return;
+          });
         };
         var values = parseValues(value);
         if (changing || values === parseValues(selectize.getValue())) {
