@@ -10,7 +10,9 @@ angular.module('selectize-ng', [])
       selectize: '&',
       options: '&',
       defaults: '&',
-      selecteditems: '='
+      selecteditems: '=',
+      ngDisabled: '=',
+      ngRequired: '&'
     },
     link: function(scope, element, attrs, ngModel) {
 
@@ -32,6 +34,19 @@ angular.module('selectize-ng', [])
         setModelValue(selectize.getValue());
       });
 
+      ngModel.$isEmpty = function (val) {
+        return (val === undefined || val === null || !val.length); //override to support checking empty arrays
+      };
+
+      function toggle (disabled) {
+        disabled ? selectize.disable() : selectize.enable();
+      };
+
+      function validate() {
+        var isInvalid = (scope.ngRequired() || attrs.required || (attrs.options && attrs.options.required)) && ngModel.$isEmpty(scope.ngModel);
+        ngModel.$setValidity('required', !isInvalid)
+      };
+
       function setModelValue(value) {
         if (changing) {
           if (attrs.selecteditems) {
@@ -50,8 +65,6 @@ angular.module('selectize-ng', [])
         scope.$parent.$apply(function() {
           ngModel.$setViewValue(value);
         });
-
-
 
         if (options.mode === 'single') {
           selectize.blur();
@@ -129,6 +142,13 @@ angular.module('selectize-ng', [])
             storeInvalidValues(values, parseValues(selectize.getValue()));
           });
         }
+
+        validate();
+
+        selectize.$control.toggleClass('ng-valid', ngModel.$valid);
+        selectize.$control.toggleClass('ng-invalid', ngModel.$invalid);
+        selectize.$control.toggleClass('ng-dirty', ngModel.$dirty);
+        selectize.$control.toggleClass('ng-pristine', ngModel.$pristine);
 
       }
 
